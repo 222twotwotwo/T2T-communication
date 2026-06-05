@@ -1,0 +1,32 @@
+{
+  "server": {
+    "port": "8080",
+    "corsOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"]
+  },
+  "providers": {
+    "mode": "mock",
+    "asr": "mock",
+    "tts": "mock",
+    "pronunciation": "mock",
+    "llm": "mock",
+    "azure": {
+      "speechKey": "",
+      "speechRegion": "",
+      "language": "en-US"
+    },
+    "openai": {
+      "apiKey": "",
+      "baseURL": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini"
+    },
+    "anthropic": {
+      "apiKey": "",
+      "baseURL": "https://api.anthropic.com",
+      "model": "claude-3-5-sonnet-latest"
+    },
+    "edgeTTS": {
+      "voice": "en-US-JennyNeural",
+      "command": "edge-tts"
+    }
+  }
+}

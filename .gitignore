@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Frontend build output and caches
+dist/
+frontend/dist/
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# Go build output and caches
+bin/
+*.exe
+*.test
+*.out
+coverage.out
+
+# Local runtime logs
+*.log
+backend-server.log
+frontend-dev.log
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+config/app.commercial.json
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Docker local state
+.docker/
