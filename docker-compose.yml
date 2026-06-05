@@ -1,0 +1,19 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      T2T_CONFIG_FILE: /app/config/app.mock.json
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config:ro
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend

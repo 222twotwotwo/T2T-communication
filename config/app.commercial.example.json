@@ -1,0 +1,32 @@
+{
+  "server": {
+    "port": "8080",
+    "corsOrigins": ["http://localhost:5173"]
+  },
+  "providers": {
+    "mode": "commercial",
+    "asr": "azure",
+    "tts": "edge-tts",
+    "pronunciation": "azure",
+    "llm": "openai",
+    "azure": {
+      "speechKey": "replace-with-azure-speech-key",
+      "speechRegion": "eastus",
+      "language": "en-US"
+    },
+    "openai": {
+      "apiKey": "replace-with-openai-api-key",
+      "baseURL": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini"
+    },
+    "anthropic": {
+      "apiKey": "replace-with-anthropic-api-key",
+      "baseURL": "https://api.anthropic.com",
+      "model": "claude-3-5-sonnet-latest"
+    },
+    "edgeTTS": {
+      "voice": "en-US-JennyNeural",
+      "command": "edge-tts"
+    }
+  }
+}
