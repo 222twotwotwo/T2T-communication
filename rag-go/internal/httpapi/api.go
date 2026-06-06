@@ -232,8 +232,7 @@ func (a *App) hybridWrite(w http.ResponseWriter, r *http.Request) {
 	docs = withCategory(docs, param(r, "category"))
 	chunks := splitter.RecursiveDocuments(docs, 100, 0, []string{"\u3002"})
 	if err := a.es.BulkIndex(r.Context(), chunks); err != nil {
-		writeError(w, err)
-		return
+		log.Printf("es bulk index skipped: %v", err)
 	}
 	if err := a.embedAndStore(r.Context(), chunks, a.llmForRequest(r)); err != nil {
 		writeError(w, err)
@@ -352,13 +351,16 @@ func (a *App) vectorSearch(ctx context.Context, query string, threshold float64,
 }
 
 func (a *App) hybridContents(ctx context.Context, keyword string, category string, topK int, useRerank bool, llm *dashscope.Client) ([]string, error) {
-	vectorDocs, err := a.vectorSearch(ctx, keyword, 0.5, topK, category, llm)
-	if err != nil {
-		return nil, err
+	vectorDocs, vectorErr := a.vectorSearch(ctx, keyword, 0.5, topK, category, llm)
+	esDocs, esErr := a.es.SearchByKeyword(ctx, keyword, topK, category)
+	if vectorErr != nil && esErr != nil {
+		return nil, fmt.Errorf("hybrid search failed: vector: %v; es: %v", vectorErr, esErr)
 	}
-	esDocs, err := a.es.SearchByKeyword(ctx, keyword, topK, category)
-	if err != nil {
-		return nil, err
+	if vectorErr != nil {
+		vectorDocs = nil
+	}
+	if esErr != nil {
+		esDocs = nil
 	}
 	rrf := rerank.RRF(vectorDocs, esDocs, 20)
 	if useRerank {
