@@ -28,5 +28,12 @@
       "voice": "en-US-JennyNeural",
       "command": "edge-tts"
     }
+  },
+  "rag": {
+    "enabled": false,
+    "baseURL": "http://localhost:8001",
+    "topK": 5,
+    "timeoutMs": 1500,
+    "useRerank": false
   }
 }

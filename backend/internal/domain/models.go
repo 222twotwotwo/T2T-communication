@@ -125,10 +125,11 @@ type TTSResult struct {
 }
 
 type ConversationContext struct {
-	Session   Session   `json:"session"`
-	UserText  string    `json:"userText"`
-	TurnIndex int       `json:"turnIndex"`
-	StartedAt time.Time `json:"startedAt"`
+	Session           Session   `json:"session"`
+	UserText          string    `json:"userText"`
+	TurnIndex         int       `json:"turnIndex"`
+	StartedAt         time.Time `json:"startedAt"`
+	KnowledgeSnippets []string  `json:"knowledgeSnippets,omitempty"`
 }
 
 type LLMReply struct {

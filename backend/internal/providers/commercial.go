@@ -261,8 +261,25 @@ func buildConversationPrompt(request domain.ConversationContext) string {
 		"User role: " + request.Session.Scenario.UserRole,
 		"Level: " + request.Session.Level,
 		"Latest user sentence: " + request.UserText,
-		"Reply in 1-2 natural spoken English sentences and ask one follow-up question when appropriate.",
 	}
+	if len(request.KnowledgeSnippets) > 0 {
+		lines = append(lines, "Relevant scenario knowledge:")
+		index := 1
+		for _, snippet := range request.KnowledgeSnippets {
+			snippet = strings.TrimSpace(snippet)
+			if snippet == "" {
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("%d. %s", index, snippet))
+			index++
+		}
+		if index > 1 {
+			lines = append(lines, "Use this knowledge only when it naturally helps the role-play. Do not mention the knowledge base or sources.")
+		}
+	}
+	lines = append(lines,
+		"Reply in 1-2 natural spoken English sentences and ask one follow-up question when appropriate.",
+	)
 	return strings.Join(lines, "\n")
 }
 

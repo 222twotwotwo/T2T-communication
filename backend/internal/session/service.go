@@ -11,11 +11,13 @@ import (
 
 	"t2t/backend/internal/domain"
 	"t2t/backend/internal/providers"
+	"t2t/backend/internal/rag"
 	"t2t/backend/internal/scenarios"
 )
 
 type Service struct {
 	providers providers.Bundle
+	retriever rag.Retriever
 	mu        sync.RWMutex
 	sessions  map[string]domain.Session
 }
@@ -40,9 +42,14 @@ type TurnResponse struct {
 	TranscriptSource string                 `json:"transcriptSource"`
 }
 
-func NewService(bundle providers.Bundle) *Service {
+func NewService(bundle providers.Bundle, retrievers ...rag.Retriever) *Service {
+	retriever := rag.Retriever(rag.DisabledRetriever{})
+	if len(retrievers) > 0 && retrievers[0] != nil {
+		retriever = retrievers[0]
+	}
 	return &Service{
 		providers: bundle,
+		retriever: retriever,
 		sessions:  map[string]domain.Session{},
 	}
 }
@@ -170,11 +177,13 @@ func (s *Service) AddTurn(ctx context.Context, id string, request TurnRequest) (
 
 	contextSession := current
 	contextSession.Messages = append(contextSession.Messages, userMessage)
+	knowledgeSnippets := s.retrieveKnowledge(ctx, current, userText)
 	llmReply, err := s.providers.LLM.NextReply(ctx, domain.ConversationContext{
-		Session:   contextSession,
-		UserText:  userText,
-		TurnIndex: turnIndex,
-		StartedAt: startedAt,
+		Session:           contextSession,
+		UserText:          userText,
+		TurnIndex:         turnIndex,
+		StartedAt:         startedAt,
+		KnowledgeSnippets: knowledgeSnippets,
 	})
 	if err != nil {
 		return TurnResponse{}, err
@@ -225,6 +234,20 @@ func (s *Service) AddTurn(ctx context.Context, id string, request TurnRequest) (
 		Signal:           signal,
 		TranscriptSource: transcriptSource,
 	}, nil
+}
+
+func (s *Service) retrieveKnowledge(ctx context.Context, session domain.Session, userText string) []string {
+	if s.retriever == nil {
+		return nil
+	}
+	snippets, err := s.retriever.Search(ctx, rag.SearchRequest{
+		Query:    userText,
+		Category: session.Scenario.ID,
+	})
+	if err != nil {
+		return nil
+	}
+	return snippets
 }
 
 func (s *Service) Finish(ctx context.Context, id string) (domain.PracticeReport, error) {
