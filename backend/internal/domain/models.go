@@ -125,11 +125,12 @@ type TTSResult struct {
 }
 
 type ConversationContext struct {
-	Session           Session   `json:"session"`
-	UserText          string    `json:"userText"`
-	TurnIndex         int       `json:"turnIndex"`
-	StartedAt         time.Time `json:"startedAt"`
-	KnowledgeSnippets []string  `json:"knowledgeSnippets,omitempty"`
+	Session           Session            `json:"session"`
+	UserText          string             `json:"userText"`
+	TurnIndex         int                `json:"turnIndex"`
+	StartedAt         time.Time          `json:"startedAt"`
+	KnowledgeSnippets []string           `json:"knowledgeSnippets,omitempty"`
+	Credentials       RuntimeCredentials `json:"-"`
 }
 
 type LLMReply struct {
@@ -139,5 +140,13 @@ type LLMReply struct {
 }
 
 type ReportContext struct {
-	Session Session `json:"session"`
+	Session     Session            `json:"session"`
+	Credentials RuntimeCredentials `json:"-"`
+}
+
+type RuntimeCredentials struct {
+	LLMProvider     string `json:"-"`
+	OpenAIAPIKey    string `json:"-"`
+	AnthropicAPIKey string `json:"-"`
+	DashScopeAPIKey string `json:"-"`
 }

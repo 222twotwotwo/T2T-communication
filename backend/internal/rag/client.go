@@ -19,9 +19,10 @@ type Retriever interface {
 }
 
 type SearchRequest struct {
-	Query    string
-	Category string
-	TopK     int
+	Query           string
+	Category        string
+	TopK            int
+	DashScopeAPIKey string
 }
 
 type DisabledRetriever struct{}
@@ -36,9 +37,6 @@ type Client struct {
 }
 
 func NewRetriever(cfg config.RAGConfig) Retriever {
-	if !cfg.Enabled {
-		return DisabledRetriever{}
-	}
 	return NewClient(cfg)
 }
 
@@ -56,6 +54,10 @@ func NewClient(cfg config.RAGConfig) *Client {
 func (c *Client) Search(ctx context.Context, request SearchRequest) ([]string, error) {
 	query := strings.TrimSpace(request.Query)
 	if query == "" {
+		return nil, nil
+	}
+	dashScopeAPIKey := strings.TrimSpace(request.DashScopeAPIKey)
+	if !c.cfg.Enabled && dashScopeAPIKey == "" {
 		return nil, nil
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(c.cfg.BaseURL), "/")
@@ -86,6 +88,9 @@ func (c *Client) Search(ctx context.Context, request SearchRequest) ([]string, e
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+	if dashScopeAPIKey != "" {
+		httpReq.Header.Set("X-T2T-DashScope-Key", dashScopeAPIKey)
 	}
 	resp, err := c.http.Do(httpReq)
 	if err != nil {

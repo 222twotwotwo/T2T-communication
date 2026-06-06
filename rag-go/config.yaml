@@ -1,0 +1,34 @@
+server:
+  port: 8001
+
+dashscope:
+  api_key: ""
+  compatible_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  native_base_url: "https://dashscope.aliyuncs.com"
+  embedding_model: "text-embedding-v4"
+  embedding_dimensions: 768
+  chat_model: "qwen-plus"
+  rerank_model: "gte-rerank-v2"
+
+postgres:
+  dsn: "postgres://pgvector:pgvector@localhost:5433/rag_test?sslmode=disable"
+  table: "vector_st"
+  dimensions: 768
+  initialize_schema: false
+
+elasticsearch:
+  url: "http://localhost:9200"
+  index: "rag_docs"
+  username: ""
+  password: ""
+  insecure_skip_verify: false
+
+minio:
+  endpoint: "http://localhost:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  bucket_name: "rag-test"
+  public_read: true
+
+reader:
+  tika_url: ""

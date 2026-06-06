@@ -1,4 +1,4 @@
-import type { PracticeReport, ProviderStatus, Scenario, SessionSnapshot, TurnResponse } from './types';
+import type { ClientKeySettings, PracticeReport, ProviderStatus, Scenario, SessionSnapshot, TurnResponse } from './types';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -25,23 +25,46 @@ export function getProviderStatus() {
   return request<ProviderStatus>('/api/provider-status');
 }
 
-export function createSession(scenarioId: string, level: string) {
-  return request<SessionSnapshot>('/api/sessions', {
-    method: 'POST',
-    body: JSON.stringify({ scenarioId, level }),
-  });
-}
-
-export function sendTurn(sessionId: string, payload: { text?: string; audioBase64?: string; mimeType?: string }) {
+export function sendTurn(sessionId: string, payload: { text?: string; audioBase64?: string; mimeType?: string }, keys?: ClientKeySettings) {
   return request<TurnResponse>(`/api/sessions/${sessionId}/turn`, {
     method: 'POST',
+    headers: credentialHeaders(keys),
     body: JSON.stringify(payload),
   });
 }
 
-export function finishSession(sessionId: string) {
+export function finishSession(sessionId: string, keys?: ClientKeySettings) {
   return request<PracticeReport>(`/api/sessions/${sessionId}/finish`, {
     method: 'POST',
+    headers: credentialHeaders(keys),
     body: JSON.stringify({}),
   });
+}
+
+export function createSession(scenarioId: string, level: string, keys?: ClientKeySettings) {
+  return request<SessionSnapshot>('/api/sessions', {
+    method: 'POST',
+    headers: credentialHeaders(keys),
+    body: JSON.stringify({ scenarioId, level }),
+  });
+}
+
+function credentialHeaders(keys?: ClientKeySettings): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (!keys) {
+    return headers;
+  }
+  if (keys.llmProvider && keys.llmProvider !== 'mock') {
+    headers['X-T2T-LLM-Provider'] = keys.llmProvider;
+  }
+  if (keys.openaiKey.trim()) {
+    headers['X-T2T-OpenAI-Key'] = keys.openaiKey.trim();
+  }
+  if (keys.anthropicKey.trim()) {
+    headers['X-T2T-Anthropic-Key'] = keys.anthropicKey.trim();
+  }
+  if (keys.dashScopeKey.trim()) {
+    headers['X-T2T-DashScope-Key'] = keys.dashScopeKey.trim();
+  }
+  return headers;
 }

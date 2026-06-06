@@ -69,11 +69,19 @@ func TestSessionInjectsRAGKnowledgeIntoLLMContext(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	if _, err := service.AddTurn(context.Background(), created.ID, TurnRequest{Text: "I led a migration project last quarter."}); err != nil {
+	if _, err := service.AddTurn(context.Background(), created.ID, TurnRequest{
+		Text: "I led a migration project last quarter.",
+		Credentials: domain.RuntimeCredentials{
+			DashScopeAPIKey: "dashscope-user-key",
+		},
+	}); err != nil {
 		t.Fatalf("add turn: %v", err)
 	}
 	if retriever.last.Category != "interview" {
 		t.Fatalf("expected interview category, got %q", retriever.last.Category)
+	}
+	if retriever.last.DashScopeAPIKey != "dashscope-user-key" {
+		t.Fatalf("expected dashscope key to be forwarded")
 	}
 	if len(llm.last.KnowledgeSnippets) != 1 {
 		t.Fatalf("expected one knowledge snippet, got %d", len(llm.last.KnowledgeSnippets))

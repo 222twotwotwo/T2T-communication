@@ -23,15 +23,17 @@ type Service struct {
 }
 
 type CreateRequest struct {
-	ScenarioID string `json:"scenarioId"`
-	Level      string `json:"level"`
-	Voice      string `json:"voice"`
+	ScenarioID  string                    `json:"scenarioId"`
+	Level       string                    `json:"level"`
+	Voice       string                    `json:"voice"`
+	Credentials domain.RuntimeCredentials `json:"-"`
 }
 
 type TurnRequest struct {
-	Text        string `json:"text"`
-	AudioBase64 string `json:"audioBase64"`
-	MimeType    string `json:"mimeType"`
+	Text        string                    `json:"text"`
+	AudioBase64 string                    `json:"audioBase64"`
+	MimeType    string                    `json:"mimeType"`
+	Credentials domain.RuntimeCredentials `json:"-"`
 }
 
 type TurnResponse struct {
@@ -97,10 +99,11 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (domain.Ses
 
 	if session.Scenario.OpeningPrompt == "" {
 		reply, err := s.providers.LLM.NextReply(ctx, domain.ConversationContext{
-			Session:   session,
-			UserText:  "Start the scenario.",
-			TurnIndex: 0,
-			StartedAt: now,
+			Session:     session,
+			UserText:    "Start the scenario.",
+			TurnIndex:   0,
+			StartedAt:   now,
+			Credentials: request.Credentials,
 		})
 		if err != nil {
 			return domain.SessionSnapshot{}, err
@@ -177,13 +180,14 @@ func (s *Service) AddTurn(ctx context.Context, id string, request TurnRequest) (
 
 	contextSession := current
 	contextSession.Messages = append(contextSession.Messages, userMessage)
-	knowledgeSnippets := s.retrieveKnowledge(ctx, current, userText)
+	knowledgeSnippets := s.retrieveKnowledge(ctx, current, userText, request.Credentials)
 	llmReply, err := s.providers.LLM.NextReply(ctx, domain.ConversationContext{
 		Session:           contextSession,
 		UserText:          userText,
 		TurnIndex:         turnIndex,
 		StartedAt:         startedAt,
 		KnowledgeSnippets: knowledgeSnippets,
+		Credentials:       request.Credentials,
 	})
 	if err != nil {
 		return TurnResponse{}, err
@@ -236,13 +240,14 @@ func (s *Service) AddTurn(ctx context.Context, id string, request TurnRequest) (
 	}, nil
 }
 
-func (s *Service) retrieveKnowledge(ctx context.Context, session domain.Session, userText string) []string {
+func (s *Service) retrieveKnowledge(ctx context.Context, session domain.Session, userText string, credentials domain.RuntimeCredentials) []string {
 	if s.retriever == nil {
 		return nil
 	}
 	snippets, err := s.retriever.Search(ctx, rag.SearchRequest{
-		Query:    userText,
-		Category: session.Scenario.ID,
+		Query:           userText,
+		Category:        session.Scenario.ID,
+		DashScopeAPIKey: credentials.DashScopeAPIKey,
 	})
 	if err != nil {
 		return nil
@@ -250,7 +255,7 @@ func (s *Service) retrieveKnowledge(ctx context.Context, session domain.Session,
 	return snippets
 }
 
-func (s *Service) Finish(ctx context.Context, id string) (domain.PracticeReport, error) {
+func (s *Service) Finish(ctx context.Context, id string, credentials ...domain.RuntimeCredentials) (domain.PracticeReport, error) {
 	s.mu.Lock()
 	current, ok := s.sessions[id]
 	if !ok {
@@ -265,7 +270,17 @@ func (s *Service) Finish(ctx context.Context, id string) (domain.PracticeReport,
 	}
 	s.mu.Unlock()
 
-	return s.providers.LLM.GenerateReport(ctx, domain.ReportContext{Session: current})
+	return s.providers.LLM.GenerateReport(ctx, domain.ReportContext{
+		Session:     current,
+		Credentials: firstCredentials(credentials),
+	})
+}
+
+func firstCredentials(credentials []domain.RuntimeCredentials) domain.RuntimeCredentials {
+	if len(credentials) == 0 {
+		return domain.RuntimeCredentials{}
+	}
+	return credentials[0]
 }
 
 func snapshot(session domain.Session) domain.SessionSnapshot {
