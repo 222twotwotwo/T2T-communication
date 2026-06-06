@@ -16,8 +16,8 @@
     },
     "openai": {
       "apiKey": "replace-with-openai-api-key",
-      "baseURL": "https://api.openai.com/v1",
-      "model": "gpt-4o-mini"
+      "baseURL": "https://api.deepseek.com",
+      "model": "deepseek-chat"
     },
     "anthropic": {
       "apiKey": "replace-with-anthropic-api-key",

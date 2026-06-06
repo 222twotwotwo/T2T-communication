@@ -387,6 +387,18 @@ input:focus {
   font-weight: 700;
 }
 
+.transcript-preview {
+  max-height: 74px;
+  overflow: auto;
+  border-top: 1px solid rgba(24, 32, 37, 0.08);
+  padding: 10px 14px;
+  background: #f7faf7;
+  color: #334147;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .composer {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) 52px;

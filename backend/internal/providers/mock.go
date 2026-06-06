@@ -68,7 +68,7 @@ func (MockProvider) NextReply(_ context.Context, request domain.ConversationCont
 	userText := strings.TrimSpace(request.UserText)
 	scenarioID := request.Session.Scenario.ID
 	turn := request.TurnIndex
-	reply := nextScenarioReply(scenarioID, userText, turn)
+	reply := nextScenarioReply(scenarioID, turn)
 	return domain.LLMReply{
 		Text:              reply,
 		HiddenCorrections: findExpressionIssues(userText, turn),
@@ -118,12 +118,7 @@ func fallbackTranscript(scenarioID string) string {
 	}
 }
 
-func nextScenarioReply(scenarioID string, userText string, turn int) string {
-	shortFollowUp := "Could you add one specific detail so I can understand your point better?"
-	if countWords(userText) < 6 {
-		return shortFollowUp
-	}
-
+func nextScenarioReply(scenarioID string, turn int) string {
 	switch scenarioID {
 	case "interview":
 		replies := []string{
