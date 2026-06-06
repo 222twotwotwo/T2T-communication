@@ -14,7 +14,7 @@ postgres:
   dsn: "postgres://pgvector:pgvector@localhost:5433/rag_test?sslmode=disable"
   table: "vector_st"
   dimensions: 768
-  initialize_schema: false
+  initialize_schema: true
 
 elasticsearch:
   url: "http://localhost:9200"
