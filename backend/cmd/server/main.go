@@ -6,6 +6,7 @@ import (
 	"t2t/backend/internal/api"
 	"t2t/backend/internal/config"
 	"t2t/backend/internal/providers"
+	"t2t/backend/internal/rag"
 	"t2t/backend/internal/session"
 )
 
@@ -16,7 +17,7 @@ func main() {
 	}
 
 	bundle := providers.NewProviderBundle(cfg)
-	service := session.NewService(bundle)
+	service := session.NewService(bundle, rag.NewRetriever(cfg.RAG))
 	router := api.NewRouter(cfg, service)
 
 	addr := ":" + cfg.Server.Port
