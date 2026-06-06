@@ -73,6 +73,7 @@ func NewProviderBundle(cfg config.AppConfig) Bundle {
 			bundle.LLM = NewAnthropicProvider(cfg.Providers.Anthropic)
 		}
 	}
+	bundle.LLM = NewRuntimeLLMProvider(cfg.Providers, bundle.LLM)
 
 	return bundle
 }

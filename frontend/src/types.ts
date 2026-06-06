@@ -82,3 +82,10 @@ export type ProviderStatus = {
   commercialReady: boolean;
   warnings: string[];
 };
+
+export type ClientKeySettings = {
+  llmProvider: 'mock' | 'openai' | 'anthropic';
+  openaiKey: string;
+  anthropicKey: string;
+  dashScopeKey: string;
+};

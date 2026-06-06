@@ -67,6 +67,12 @@ button:disabled {
   gap: 16px;
 }
 
+.topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .eyebrow {
   margin: 0 0 5px;
   color: #87724d;
@@ -181,7 +187,8 @@ input:focus {
 .ghost-action,
 .send-button,
 .record-button,
-.icon-button {
+.icon-button,
+.key-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -206,6 +213,55 @@ input:focus {
   border: 1px solid rgba(24, 32, 37, 0.16);
   background: #fff;
   color: #182025;
+}
+
+.key-button {
+  width: 40px;
+  min-height: 34px;
+  border: 1px solid rgba(24, 32, 37, 0.16);
+  background: #fff;
+  color: #182025;
+}
+
+.key-button.active {
+  border-color: rgba(21, 115, 113, 0.44);
+  background: #eef5f3;
+  color: #157371;
+}
+
+.key-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  border: 1px solid rgba(21, 115, 113, 0.18);
+  border-radius: 8px;
+  background: #fbfbf8;
+  padding: 14px;
+}
+
+.key-panel-heading,
+.key-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.key-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.key-panel-footer > span {
+  color: #627077;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.key-panel-footer > div {
+  display: inline-flex;
+  gap: 8px;
 }
 
 .scenario-strip {
@@ -317,6 +373,10 @@ input:focus {
   height: 28px;
   background: rgba(24, 32, 37, 0.08);
   color: #182025;
+}
+
+.icon-button.static {
+  position: static;
 }
 
 .empty-state {
@@ -568,12 +628,16 @@ input:focus {
   }
 
   .topbar,
-  .scenario-strip {
+  .scenario-strip,
+  .key-panel-heading,
+  .key-panel-footer {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .control-panel,
-  .practice-grid {
+  .practice-grid,
+  .key-grid {
     grid-template-columns: 1fr;
   }
 

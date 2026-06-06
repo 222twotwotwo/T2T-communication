@@ -5,17 +5,28 @@ import {
   BookOpenCheck,
   CheckCircle2,
   Clock3,
+  KeyRound,
   Loader2,
   Mic,
   Play,
+  Save,
   Send,
   Square,
+  Trash2,
   Volume2,
+  X,
 } from 'lucide-react';
 import { createSession, finishSession, getProviderStatus, getScenarios, sendTurn } from './api';
-import type { Message, PracticeReport, ProviderStatus, Scenario, ScoreCard, SessionSnapshot, TurnSignal } from './types';
+import type { ClientKeySettings, Message, PracticeReport, ProviderStatus, Scenario, ScoreCard, SessionSnapshot, TurnSignal } from './types';
 
 const levels = ['A2', 'B1', 'B2'];
+const keySettingsStorageKey = 't2t-client-key-settings-v1';
+const defaultKeySettings: ClientKeySettings = {
+  llmProvider: 'mock',
+  openaiKey: '',
+  anthropicKey: '',
+  dashScopeKey: '',
+};
 
 export default function App() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -28,6 +39,9 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState('');
+  const [keySettings, setKeySettings] = useState<ClientKeySettings>(() => loadKeySettings());
+  const [keyDraft, setKeyDraft] = useState<ClientKeySettings>(() => loadKeySettings());
+  const [keyPanelOpen, setKeyPanelOpen] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -50,13 +64,14 @@ export default function App() {
 
   const latestSignal = session?.signals.at(-1);
   const messages = session?.messages ?? [];
+  const hasRuntimeKeys = Boolean(keySettings.openaiKey || keySettings.anthropicKey || keySettings.dashScopeKey);
 
   async function startSession() {
     setBusy(true);
     setError('');
     setReport(null);
     try {
-      const created = await createSession(selectedScenario, level);
+      const created = await createSession(selectedScenario, level, keySettings);
       setSession(created);
       speak(created.messages.at(-1));
     } catch (err) {
@@ -76,7 +91,7 @@ export default function App() {
     setBusy(true);
     setError('');
     try {
-      const turn = await sendTurn(session.id, { text });
+      const turn = await sendTurn(session.id, { text }, keySettings);
       setSession(turn.session);
       speak(turn.assistantMessage);
     } catch (err) {
@@ -133,7 +148,7 @@ export default function App() {
       const turn = await sendTurn(session.id, {
         audioBase64,
         mimeType: blob.type,
-      });
+      }, keySettings);
       setSession(turn.session);
       speak(turn.assistantMessage);
     } catch (err) {
@@ -150,7 +165,7 @@ export default function App() {
     setBusy(true);
     setError('');
     try {
-      const nextReport = await finishSession(session.id);
+      const nextReport = await finishSession(session.id, keySettings);
       setReport(nextReport);
       setSession((current) => (current ? { ...current, endedAt: nextReport.generatedAt } : current));
     } catch (err) {
@@ -158,6 +173,24 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function openKeyPanel() {
+    setKeyDraft(keySettings);
+    setKeyPanelOpen(true);
+  }
+
+  function saveKeySettings() {
+    const next = sanitizeKeySettings(keyDraft);
+    setKeySettings(next);
+    saveKeySettingsToStorage(next);
+    setKeyPanelOpen(false);
+  }
+
+  function clearKeySettings() {
+    setKeyDraft(defaultKeySettings);
+    setKeySettings(defaultKeySettings);
+    saveKeySettingsToStorage(defaultKeySettings);
   }
 
   return (
@@ -168,11 +201,60 @@ export default function App() {
             <p className="eyebrow">T2T Speaking Coach</p>
             <h1>Scenario speaking studio</h1>
           </div>
-          <div className="provider-chip">
-            <Activity size={16} />
-            <span>{providerStatus?.mode ?? 'mock'}</span>
+          <div className="topbar-actions">
+            <div className="provider-chip">
+              <Activity size={16} />
+              <span>{providerStatus?.mode ?? 'mock'}</span>
+            </div>
+            <button className={`key-button ${hasRuntimeKeys ? 'active' : ''}`} type="button" onClick={openKeyPanel} title="API keys">
+              <KeyRound size={18} />
+            </button>
           </div>
         </header>
+
+        {keyPanelOpen && (
+          <section className="key-panel" aria-label="api key settings">
+            <div className="key-panel-heading">
+              <div>
+                <p className="eyebrow">Runtime keys</p>
+                <h2>API keys</h2>
+              </div>
+              <button className="icon-button static" type="button" onClick={() => setKeyPanelOpen(false)} title="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="key-grid">
+              <div className="field-group">
+                <label htmlFor="llmProvider">LLM provider</label>
+                <select
+                  id="llmProvider"
+                  value={keyDraft.llmProvider}
+                  onChange={(event) => setKeyDraft((current) => ({ ...current, llmProvider: event.target.value as ClientKeySettings['llmProvider'] }))}
+                >
+                  <option value="mock">Mock</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </div>
+              <SecretField id="openaiKey" label="OpenAI key" value={keyDraft.openaiKey} onChange={(value) => setKeyDraft((current) => ({ ...current, openaiKey: value }))} />
+              <SecretField id="anthropicKey" label="Anthropic key" value={keyDraft.anthropicKey} onChange={(value) => setKeyDraft((current) => ({ ...current, anthropicKey: value }))} />
+              <SecretField id="dashScopeKey" label="DashScope RAG key" value={keyDraft.dashScopeKey} onChange={(value) => setKeyDraft((current) => ({ ...current, dashScopeKey: value }))} />
+            </div>
+            <div className="key-panel-footer">
+              <span>Stored in this browser.</span>
+              <div>
+                <button className="ghost-action" type="button" onClick={clearKeySettings}>
+                  <Trash2 size={18} />
+                  <span>Clear</span>
+                </button>
+                <button className="primary-action" type="button" onClick={saveKeySettings}>
+                  <Save size={18} />
+                  <span>Save</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="control-panel" aria-label="session controls">
           <div className="field-group">
@@ -275,6 +357,15 @@ export default function App() {
 
       <ReportPanel report={report} />
     </main>
+  );
+}
+
+function SecretField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="field-group">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} type="password" value={value} onChange={(event) => onChange(event.target.value)} autoComplete="off" spellCheck={false} />
+    </div>
   );
 }
 
@@ -392,4 +483,36 @@ function blobToBase64(blob: Blob): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });
+}
+
+function loadKeySettings(): ClientKeySettings {
+  if (typeof window === 'undefined') {
+    return defaultKeySettings;
+  }
+  try {
+    const raw = window.localStorage.getItem(keySettingsStorageKey);
+    if (!raw) {
+      return defaultKeySettings;
+    }
+    return sanitizeKeySettings(JSON.parse(raw) as Partial<ClientKeySettings>);
+  } catch {
+    return defaultKeySettings;
+  }
+}
+
+function saveKeySettingsToStorage(settings: ClientKeySettings) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.setItem(keySettingsStorageKey, JSON.stringify(settings));
+}
+
+function sanitizeKeySettings(settings: Partial<ClientKeySettings>): ClientKeySettings {
+  const llmProvider = settings.llmProvider === 'openai' || settings.llmProvider === 'anthropic' ? settings.llmProvider : 'mock';
+  return {
+    llmProvider,
+    openaiKey: settings.openaiKey?.trim() ?? '',
+    anthropicKey: settings.anthropicKey?.trim() ?? '',
+    dashScopeKey: settings.dashScopeKey?.trim() ?? '',
+  };
 }
