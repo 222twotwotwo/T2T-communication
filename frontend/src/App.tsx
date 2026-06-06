@@ -22,11 +22,38 @@ import type { ClientKeySettings, Message, PracticeReport, ProviderStatus, Scenar
 const levels = ['A2', 'B1', 'B2'];
 const keySettingsStorageKey = 't2t-client-key-settings-v1';
 const defaultKeySettings: ClientKeySettings = {
-  llmProvider: 'mock',
+  llmProvider: 'openai',
   openaiKey: '',
   anthropicKey: '',
   dashScopeKey: '',
 };
+
+type SpeechRecognitionAlternativeLike = {
+  transcript: string;
+};
+
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  length: number;
+  [index: number]: SpeechRecognitionAlternativeLike | undefined;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 export default function App() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -42,8 +69,12 @@ export default function App() {
   const [keySettings, setKeySettings] = useState<ClientKeySettings>(() => loadKeySettings());
   const [keyDraft, setKeyDraft] = useState<ClientKeySettings>(() => loadKeySettings());
   const [keyPanelOpen, setKeyPanelOpen] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const speechTranscriptRef = useRef('');
+  const liveTranscriptRef = useRef('');
 
   useEffect(() => {
     void Promise.all([getScenarios(), getProviderStatus()])
@@ -110,7 +141,11 @@ export default function App() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
+      const recognition = createSpeechRecognition();
       chunksRef.current = [];
+      speechTranscriptRef.current = '';
+      liveTranscriptRef.current = '';
+      setLiveTranscript('');
       recorderRef.current = recorder;
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -119,9 +154,40 @@ export default function App() {
       };
       recorder.onstop = () => {
         stream.getTracks().forEach((track) => track.stop());
-        void submitAudio();
+        window.setTimeout(() => {
+          void submitAudio();
+        }, recognition ? 250 : 0);
       };
+      if (recognition) {
+        recognition.onresult = (event) => {
+          let interimTranscript = '';
+          const finalPieces: string[] = [];
+          for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const result = event.results[index];
+            const transcript = result[0]?.transcript.trim();
+            if (!transcript) {
+              continue;
+            }
+            if (result.isFinal) {
+              finalPieces.push(transcript);
+            } else {
+              interimTranscript = `${interimTranscript} ${transcript}`.trim();
+            }
+          }
+          if (finalPieces.length > 0) {
+            speechTranscriptRef.current = `${speechTranscriptRef.current} ${finalPieces.join(' ')}`.trim();
+          }
+          const preview = [speechTranscriptRef.current, interimTranscript].filter(Boolean).join(' ');
+          liveTranscriptRef.current = preview;
+          setLiveTranscript(preview);
+        };
+        recognition.onerror = () => {
+          recognitionRef.current = null;
+        };
+        recognitionRef.current = recognition;
+      }
       recorder.start();
+      startSpeechRecognition(recognition);
       setRecording(true);
     } catch (err) {
       setError(`Microphone unavailable: ${(err as Error).message}`);
@@ -129,31 +195,61 @@ export default function App() {
   }
 
   function stopRecording() {
-    if (!recorderRef.current || !recording) {
+    const recorder = recorderRef.current;
+    if (!recorder || !recording) {
       return;
     }
-    recorderRef.current.stop();
+    stopSpeechRecognition();
+    if (recorder.state !== 'inactive') {
+      recorder.stop();
+    }
     setRecording(false);
   }
 
+  function stopSpeechRecognition() {
+    if (!recognitionRef.current) {
+      return;
+    }
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    try {
+      recognition.stop();
+    } catch {
+      // The recorder should still submit the captured audio or available transcript.
+    }
+  }
+
   async function submitAudio() {
-    if (!session || chunksRef.current.length === 0) {
+    const transcript = (speechTranscriptRef.current || liveTranscriptRef.current).trim();
+    const hasAudio = chunksRef.current.length > 0;
+    if (!session || (!hasAudio && !transcript)) {
       return;
     }
     setBusy(true);
     setError('');
     try {
-      const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
-      const audioBase64 = await blobToBase64(blob);
-      const turn = await sendTurn(session.id, {
-        audioBase64,
-        mimeType: blob.type,
-      }, keySettings);
+      const payload: { text?: string; audioBase64?: string; mimeType?: string } = {};
+      if (transcript) {
+        payload.text = transcript;
+      }
+      if (hasAudio) {
+        const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
+        payload.audioBase64 = await blobToBase64(blob);
+        payload.mimeType = blob.type;
+      }
+      const turn = await sendTurn(session.id, payload, keySettings);
       setSession(turn.session);
       speak(turn.assistantMessage);
     } catch (err) {
+      if (transcript) {
+        setDraft(transcript);
+      }
       setError((err as Error).message);
     } finally {
+      chunksRef.current = [];
+      speechTranscriptRef.current = '';
+      liveTranscriptRef.current = '';
+      setLiveTranscript('');
       setBusy(false);
     }
   }
@@ -204,7 +300,7 @@ export default function App() {
           <div className="topbar-actions">
             <div className="provider-chip">
               <Activity size={16} />
-              <span>{providerStatus?.mode ?? 'mock'}</span>
+              <span>{providerStatus?.mode ?? 'commercial'}</span>
             </div>
             <button className={`key-button ${hasRuntimeKeys ? 'active' : ''}`} type="button" onClick={openKeyPanel} title="API keys">
               <KeyRound size={18} />
@@ -231,8 +327,7 @@ export default function App() {
                   value={keyDraft.llmProvider}
                   onChange={(event) => setKeyDraft((current) => ({ ...current, llmProvider: event.target.value as ClientKeySettings['llmProvider'] }))}
                 >
-                  <option value="mock">Mock</option>
-                  <option value="openai">OpenAI</option>
+                  <option value="openai">OpenAI compatible</option>
                   <option value="anthropic">Anthropic</option>
                 </select>
               </div>
@@ -325,6 +420,8 @@ export default function App() {
               {!session && <div className="empty-state">Choose a scene and start speaking.</div>}
             </div>
 
+            {(recording || liveTranscript) && <div className="transcript-preview" aria-live="polite">{liveTranscript || 'Listening...'}</div>}
+
             <form className="composer" onSubmit={submitTurn}>
               <button className={`record-button ${recording ? 'recording' : ''}`} type="button" onClick={recording ? stopRecording : startRecording} disabled={!session || busy}>
                 {recording ? <Square size={20} /> : <Mic size={20} />}
@@ -358,6 +455,33 @@ export default function App() {
       <ReportPanel report={report} />
     </main>
   );
+}
+
+function createSpeechRecognition(): SpeechRecognitionLike | null {
+  const speechWindow = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+  if (!Recognition) {
+    return null;
+  }
+  const recognition = new Recognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  return recognition;
+}
+
+function startSpeechRecognition(recognition: SpeechRecognitionLike | null) {
+  if (!recognition) {
+    return;
+  }
+  try {
+    recognition.start();
+  } catch {
+    // Some browsers reject duplicate or unavailable recognition starts; audio upload still works.
+  }
 }
 
 function SecretField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
@@ -508,7 +632,7 @@ function saveKeySettingsToStorage(settings: ClientKeySettings) {
 }
 
 function sanitizeKeySettings(settings: Partial<ClientKeySettings>): ClientKeySettings {
-  const llmProvider = settings.llmProvider === 'openai' || settings.llmProvider === 'anthropic' ? settings.llmProvider : 'mock';
+  const llmProvider = settings.llmProvider === 'anthropic' ? 'anthropic' : 'openai';
   return {
     llmProvider,
     openaiKey: settings.openaiKey?.trim() ?? '',

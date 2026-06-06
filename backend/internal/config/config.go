@@ -96,17 +96,17 @@ func defaults() AppConfig {
 			CorsOrigins: []string{"http://localhost:5173", "http://127.0.0.1:5173"},
 		},
 		Providers: ProvidersConfig{
-			Mode:          "mock",
+			Mode:          "commercial",
 			ASR:           "mock",
 			TTS:           "mock",
 			Pronunciation: "mock",
-			LLM:           "mock",
+			LLM:           "openai",
 			Azure: AzureConfig{
 				Language: "en-US",
 			},
 			OpenAI: OpenAIConfig{
-				BaseURL: "https://api.openai.com/v1",
-				Model:   "gpt-4o-mini",
+				BaseURL: "https://api.deepseek.com",
+				Model:   "deepseek-chat",
 			},
 			Anthropic: AnthropicConfig{
 				BaseURL: "https://api.anthropic.com",
@@ -118,7 +118,7 @@ func defaults() AppConfig {
 			},
 		},
 		RAG: RAGConfig{
-			Enabled:   false,
+			Enabled:   true,
 			BaseURL:   "http://localhost:8001",
 			TopK:      5,
 			TimeoutMs: 1500,
@@ -191,19 +191,19 @@ func normalize(cfg *AppConfig) {
 	if cfg.Server.Port == "" {
 		cfg.Server.Port = "8080"
 	}
-	cfg.Providers.Mode = lowerDefault(cfg.Providers.Mode, "mock")
+	cfg.Providers.Mode = lowerDefault(cfg.Providers.Mode, "commercial")
 	cfg.Providers.ASR = lowerDefault(cfg.Providers.ASR, "mock")
 	cfg.Providers.TTS = lowerDefault(cfg.Providers.TTS, "mock")
 	cfg.Providers.Pronunciation = lowerDefault(cfg.Providers.Pronunciation, "mock")
-	cfg.Providers.LLM = lowerDefault(cfg.Providers.LLM, "mock")
+	cfg.Providers.LLM = lowerDefault(cfg.Providers.LLM, "openai")
 	if cfg.Providers.Azure.Language == "" {
 		cfg.Providers.Azure.Language = "en-US"
 	}
 	if cfg.Providers.OpenAI.BaseURL == "" {
-		cfg.Providers.OpenAI.BaseURL = "https://api.openai.com/v1"
+		cfg.Providers.OpenAI.BaseURL = "https://api.deepseek.com"
 	}
 	if cfg.Providers.OpenAI.Model == "" {
-		cfg.Providers.OpenAI.Model = "gpt-4o-mini"
+		cfg.Providers.OpenAI.Model = "deepseek-chat"
 	}
 	if cfg.Providers.Anthropic.BaseURL == "" {
 		cfg.Providers.Anthropic.BaseURL = "https://api.anthropic.com"

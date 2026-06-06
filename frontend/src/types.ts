@@ -84,7 +84,7 @@ export type ProviderStatus = {
 };
 
 export type ClientKeySettings = {
-  llmProvider: 'mock' | 'openai' | 'anthropic';
+  llmProvider: 'openai' | 'anthropic';
   openaiKey: string;
   anthropicKey: string;
   dashScopeKey: string;

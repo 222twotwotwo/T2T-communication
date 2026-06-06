@@ -4,11 +4,11 @@
     "corsOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"]
   },
   "providers": {
-    "mode": "mock",
+    "mode": "commercial",
     "asr": "mock",
     "tts": "mock",
     "pronunciation": "mock",
-    "llm": "mock",
+    "llm": "openai",
     "azure": {
       "speechKey": "",
       "speechRegion": "",
@@ -16,8 +16,8 @@
     },
     "openai": {
       "apiKey": "",
-      "baseURL": "https://api.openai.com/v1",
-      "model": "gpt-4o-mini"
+      "baseURL": "https://api.deepseek.com",
+      "model": "deepseek-chat"
     },
     "anthropic": {
       "apiKey": "",
@@ -30,7 +30,7 @@
     }
   },
   "rag": {
-    "enabled": false,
+    "enabled": true,
     "baseURL": "http://localhost:8001",
     "topK": 5,
     "timeoutMs": 1500,

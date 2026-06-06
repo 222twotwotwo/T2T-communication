@@ -54,7 +54,7 @@ function credentialHeaders(keys?: ClientKeySettings): Record<string, string> {
   if (!keys) {
     return headers;
   }
-  if (keys.llmProvider && keys.llmProvider !== 'mock') {
+  if (keys.llmProvider) {
     headers['X-T2T-LLM-Provider'] = keys.llmProvider;
   }
   if (keys.openaiKey.trim()) {

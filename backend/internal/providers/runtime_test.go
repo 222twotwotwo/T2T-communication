@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"t2t/backend/internal/config"
@@ -49,5 +50,19 @@ func TestRuntimeLLMProviderUsesOpenAIKeyFromCredentials(t *testing.T) {
 	}
 	if authorization != "Bearer user-openai-key" {
 		t.Fatalf("expected user key authorization header, got %q", authorization)
+	}
+}
+
+func TestRuntimeLLMProviderDoesNotFallbackWhenSelectedProviderHasNoKey(t *testing.T) {
+	provider := NewRuntimeLLMProvider(config.ProvidersConfig{}, NewMockProvider())
+
+	_, err := provider.NextReply(context.Background(), domain.ConversationContext{
+		Credentials: domain.RuntimeCredentials{LLMProvider: "openai"},
+	})
+	if err == nil {
+		t.Fatalf("expected missing key error")
+	}
+	if !strings.Contains(err.Error(), "openai api key is required") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
