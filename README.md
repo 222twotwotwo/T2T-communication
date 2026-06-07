@@ -105,8 +105,8 @@ go run ./cmd/server
 ![页面展示](date\referance.png)
 
 
-![rag-go 知识库使用前对比](date\ragBefore.png)
-![rag-go 知识库使用后对比](date\ragAfter.png)
+![rag-go 知识库使用前对比](date/ragBefore.png)
+![rag-go 知识库使用后对比](date/ragAfter.png)
 
 
 
