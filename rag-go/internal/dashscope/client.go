@@ -25,6 +25,8 @@ type Client struct {
 	http                *http.Client
 }
 
+const maxEmbeddingBatchSize = 10
+
 func New(cfg config.DashScopeConfig) *Client {
 	return &Client{
 		apiKey:              cfg.APIKey,
@@ -55,6 +57,25 @@ func (c *Client) Embeddings(ctx context.Context, texts []string) ([][]float64, e
 	if len(texts) == 0 {
 		return nil, nil
 	}
+	if len(texts) > maxEmbeddingBatchSize {
+		out := make([][]float64, 0, len(texts))
+		for start := 0; start < len(texts); start += maxEmbeddingBatchSize {
+			end := start + maxEmbeddingBatchSize
+			if end > len(texts) {
+				end = len(texts)
+			}
+			batch, err := c.embeddingsOnce(ctx, texts[start:end])
+			if err != nil {
+				return nil, fmt.Errorf("embedding batch %d-%d failed: %w", start+1, end, err)
+			}
+			out = append(out, batch...)
+		}
+		return out, nil
+	}
+	return c.embeddingsOnce(ctx, texts)
+}
+
+func (c *Client) embeddingsOnce(ctx context.Context, texts []string) ([][]float64, error) {
 	body := map[string]any{
 		"model": c.embeddingModel,
 		"input": texts,

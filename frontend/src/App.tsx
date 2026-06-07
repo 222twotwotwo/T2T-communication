@@ -5,6 +5,7 @@ import {
   BookOpenCheck,
   CheckCircle2,
   Clock3,
+  FileUp,
   KeyRound,
   Loader2,
   Mic,
@@ -16,7 +17,7 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import { createSession, finishSession, getProviderStatus, getScenarios, sendTurn } from './api';
+import { createSession, finishSession, getProviderStatus, getScenarios, ingestRAGFile, sendTurn } from './api';
 import type { ClientKeySettings, Message, PracticeReport, ProviderStatus, Scenario, ScoreCard, SessionSnapshot, TurnSignal } from './types';
 
 const levels = ['A2', 'B1', 'B2'];
@@ -69,8 +70,14 @@ export default function App() {
   const [keySettings, setKeySettings] = useState<ClientKeySettings>(() => loadKeySettings());
   const [keyDraft, setKeyDraft] = useState<ClientKeySettings>(() => loadKeySettings());
   const [keyPanelOpen, setKeyPanelOpen] = useState(false);
+  const [knowledgePanelOpen, setKnowledgePanelOpen] = useState(false);
+  const [knowledgeCategory, setKnowledgeCategory] = useState('interview');
+  const [knowledgeFile, setKnowledgeFile] = useState<File | null>(null);
+  const [knowledgeBusy, setKnowledgeBusy] = useState(false);
+  const [knowledgeStatus, setKnowledgeStatus] = useState('');
   const [liveTranscript, setLiveTranscript] = useState('');
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const knowledgeInputRef = useRef<HTMLInputElement | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const speechTranscriptRef = useRef('');
@@ -87,6 +94,10 @@ export default function App() {
       })
       .catch((err: Error) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    setKnowledgeCategory(selectedScenario);
+  }, [selectedScenario]);
 
   const activeScenario = useMemo(
     () => scenarios.find((scenario) => scenario.id === selectedScenario) ?? scenarios[0],
@@ -289,6 +300,28 @@ export default function App() {
     saveKeySettingsToStorage(defaultKeySettings);
   }
 
+  async function uploadKnowledgeFile() {
+    if (!knowledgeFile) {
+      setError('Choose a markdown file first.');
+      return;
+    }
+    setKnowledgeBusy(true);
+    setError('');
+    setKnowledgeStatus('');
+    try {
+      const response = await ingestRAGFile(knowledgeCategory || selectedScenario, knowledgeFile, keySettings);
+      setKnowledgeStatus(`${response.fileName} added to ${response.category}`);
+      setKnowledgeFile(null);
+      if (knowledgeInputRef.current) {
+        knowledgeInputRef.current.value = '';
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setKnowledgeBusy(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
@@ -304,6 +337,9 @@ export default function App() {
             </div>
             <button className={`key-button ${hasRuntimeKeys ? 'active' : ''}`} type="button" onClick={openKeyPanel} title="API keys">
               <KeyRound size={18} />
+            </button>
+            <button className={`key-button ${knowledgePanelOpen ? 'active' : ''}`} type="button" onClick={() => setKnowledgePanelOpen((open) => !open)} title="Upload knowledge">
+              <FileUp size={18} />
             </button>
           </div>
         </header>
@@ -348,6 +384,48 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </section>
+        )}
+
+        {knowledgePanelOpen && (
+          <section className="key-panel knowledge-panel" aria-label="rag knowledge upload">
+            <div className="key-panel-heading">
+              <div>
+                <p className="eyebrow">RAG knowledge</p>
+                <h2>Markdown upload</h2>
+              </div>
+              <button className="icon-button static" type="button" onClick={() => setKnowledgePanelOpen(false)} title="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="knowledge-grid">
+              <div className="field-group">
+                <label htmlFor="knowledgeCategory">Category</label>
+                <select id="knowledgeCategory" value={knowledgeCategory} onChange={(event) => setKnowledgeCategory(event.target.value)}>
+                  {scenarios.map((scenario) => (
+                    <option key={scenario.id} value={scenario.id}>
+                      {scenario.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field-group">
+                <label htmlFor="knowledgeFile">Markdown file</label>
+                <input
+                  ref={knowledgeInputRef}
+                  id="knowledgeFile"
+                  className="file-input"
+                  type="file"
+                  accept=".md,.markdown,text/markdown,text/plain"
+                  onChange={(event) => setKnowledgeFile(event.target.files?.[0] ?? null)}
+                />
+              </div>
+              <button className="primary-action" type="button" onClick={uploadKnowledgeFile} disabled={knowledgeBusy || !knowledgeFile}>
+                {knowledgeBusy ? <Loader2 className="spin" size={18} /> : <FileUp size={18} />}
+                <span>Upload</span>
+              </button>
+            </div>
+            {knowledgeStatus && <div className="success-bar">{knowledgeStatus}</div>}
           </section>
         )}
 

@@ -1,4 +1,4 @@
-import type { ClientKeySettings, PracticeReport, ProviderStatus, Scenario, SessionSnapshot, TurnResponse } from './types';
+import type { ClientKeySettings, PracticeReport, ProviderStatus, RAGIngestResponse, Scenario, SessionSnapshot, TurnResponse } from './types';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -47,6 +47,25 @@ export function createSession(scenarioId: string, level: string, keys?: ClientKe
     headers: credentialHeaders(keys),
     body: JSON.stringify({ scenarioId, level }),
   });
+}
+
+export async function ingestRAGFile(category: string, file: File, keys?: ClientKeySettings) {
+  const form = new FormData();
+  form.append('category', category);
+  form.append('file', file);
+
+  const response = await fetch('/api/rag/ingest', {
+    method: 'POST',
+    headers: credentialHeaders(keys),
+    body: form,
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(payload.error ?? response.statusText);
+  }
+
+  return response.json() as Promise<RAGIngestResponse>;
 }
 
 function credentialHeaders(keys?: ClientKeySettings): Record<string, string> {

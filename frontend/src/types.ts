@@ -83,6 +83,14 @@ export type ProviderStatus = {
   warnings: string[];
 };
 
+export type RAGIngestResponse = {
+  status: string;
+  category: string;
+  fileName: string;
+  bytes: number;
+  ragResponse: string;
+};
+
 export type ClientKeySettings = {
   llmProvider: 'openai' | 'anthropic';
   openaiKey: string;
