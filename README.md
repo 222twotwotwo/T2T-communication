@@ -102,7 +102,7 @@ go run ./cmd/server
 ```
 
 页面展示
-![页面展示](date\referance.png)
+![页面展示](date/referance.png)
 
 
 ![rag-go 知识库使用前对比](date/ragBefore.png)
