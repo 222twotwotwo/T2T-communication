@@ -14,6 +14,7 @@ import (
 
 func NewRouter(cfg config.AppConfig, service *session.Service) *gin.Engine {
 	router := gin.New()
+	router.MaxMultipartMemory = 8 << 20
 	router.Use(gin.Logger(), gin.Recovery(), cors(cfg.Server.CorsOrigins))
 
 	router.GET("/api/health", func(c *gin.Context) {
@@ -75,6 +76,8 @@ func NewRouter(cfg config.AppConfig, service *session.Service) *gin.Engine {
 		}
 		c.JSON(http.StatusOK, report)
 	})
+
+	router.POST("/api/rag/ingest", ragIngestHandler(cfg))
 
 	router.GET("/api/realtime/:id", realtimeHandler(service))
 

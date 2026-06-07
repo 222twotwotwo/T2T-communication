@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -23,6 +24,18 @@ type SearchRequest struct {
 	Category        string
 	TopK            int
 	DashScopeAPIKey string
+}
+
+type IngestRequest struct {
+	FilePath        string
+	Category        string
+	DashScopeAPIKey string
+}
+
+type IngestResult struct {
+	Status      string `json:"status"`
+	Category    string `json:"category"`
+	RAGResponse string `json:"ragResponse"`
 }
 
 type DisabledRetriever struct{}
@@ -105,6 +118,59 @@ func (c *Client) Search(ctx context.Context, request SearchRequest) ([]string, e
 		return nil, err
 	}
 	return cleanSnippets(snippets, topK), nil
+}
+
+func (c *Client) Ingest(ctx context.Context, request IngestRequest) (IngestResult, error) {
+	filePath := strings.TrimSpace(request.FilePath)
+	if filePath == "" {
+		return IngestResult{}, errors.New("file path is required")
+	}
+	baseURL := strings.TrimRight(strings.TrimSpace(c.cfg.BaseURL), "/")
+	if baseURL == "" {
+		return IngestResult{}, errors.New("rag baseURL is empty")
+	}
+
+	endpoint, err := url.Parse(baseURL + "/rag/hybrid/write")
+	if err != nil {
+		return IngestResult{}, err
+	}
+	q := endpoint.Query()
+	q.Set("filePath", filePath)
+	if category := strings.TrimSpace(request.Category); category != "" {
+		q.Set("category", category)
+	}
+	endpoint.RawQuery = q.Encode()
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), nil)
+	if err != nil {
+		return IngestResult{}, err
+	}
+	if dashScopeAPIKey := strings.TrimSpace(request.DashScopeAPIKey); dashScopeAPIKey != "" {
+		httpReq.Header.Set("X-T2T-DashScope-Key", dashScopeAPIKey)
+	}
+	resp, err := c.http.Do(httpReq)
+	if err != nil {
+		return IngestResult{}, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode >= 300 {
+		message := strings.TrimSpace(string(body))
+		if message == "" {
+			message = resp.Status
+		}
+		return IngestResult{}, fmt.Errorf("rag ingest failed: %s", message)
+	}
+	responseText := strings.TrimSpace(string(body))
+	if responseText == "" {
+		responseText = "success"
+	}
+	return IngestResult{
+		Status:      "success",
+		Category:    strings.TrimSpace(request.Category),
+		RAGResponse: responseText,
+	}, nil
 }
 
 func cleanSnippets(snippets []string, limit int) []string {

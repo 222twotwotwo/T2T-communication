@@ -253,6 +253,17 @@ input:focus {
   gap: 10px;
 }
 
+.knowledge-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.file-input {
+  padding: 10px 12px;
+}
+
 .key-panel-footer > span {
   color: #627077;
   font-size: 0.82rem;
@@ -475,6 +486,14 @@ input:focus {
   font-weight: 700;
 }
 
+.success-bar {
+  border-radius: 8px;
+  background: #eef5f3;
+  color: #157371;
+  padding: 10px 12px;
+  font-weight: 800;
+}
+
 .report-panel {
   display: flex;
   min-height: calc(100vh - 36px);
@@ -649,7 +668,8 @@ input:focus {
 
   .control-panel,
   .practice-grid,
-  .key-grid {
+  .key-grid,
+  .knowledge-grid {
     grid-template-columns: 1fr;
   }
 
